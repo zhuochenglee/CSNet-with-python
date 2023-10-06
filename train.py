@@ -49,8 +49,8 @@ print(net)
 loss_fn = nn.MSELoss()
 loss_fn.to(device)
 
-optimizer = torch.optim.Adam(net.parameters(), 0.0004, betas=(0.9, 0.999))
-scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.3)
+optimizer = torch.optim.Adam(net.parameters(), 0.01, betas=(0.9, 0.999))
+scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=40, gamma=0.4)
 best_pth = float('inf')
 
 for epoch in range(LOAD_EPOCHS, NUM_EPOCHS + 1):
