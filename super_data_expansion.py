@@ -1,13 +1,13 @@
 import os
 import random
-
+from tqdm import tqdm
 from PIL import Image
 
 
 def preprocess_image(image_path):
     # 读取原始图像
     cropped_images = []
-    for i in image_path:
+    for i in tqdm(image_path, desc="读取图片"):
         image = Image.open(i)
         # 裁剪图像为96x96大小
         width, height = image.size
@@ -40,7 +40,7 @@ def process_images(image_path):
     images = preprocess_image(image_path)
     processed_images = []
 
-    for image in images:
+    for image in tqdm(images, desc="处理图片"):
         processed_images.append(image)
         processed_images.append(flip_image(image))
         processed_images.append(rotate_image(image, 90))
@@ -68,6 +68,9 @@ def random_select(images, num_images):
 
 
 
+save_dir = 'BSDS500/processed_images'
+if not os.path.exists(save_dir):
+    os.mkdir(save_dir)
 
 folder_path = "BSDS500/train"
 image_files = get_image_files(folder_path)
@@ -75,9 +78,6 @@ processed_images = process_images(image_files)
 print(f'total images: {len(processed_images)}')
 select_images = random_select(processed_images, 89600)
 
-# 保存处理后的图像
-save_dir = 'processed_images'
-if not os.path.exists(save_dir):
-    os.mkdir(save_dir)
 for i, image in enumerate(select_images):
-    image.save(os.path.join(save_dir, str(i) + '.png'))
+    for j in tqdm(range(89600)):
+        image.save(os.path.join(save_dir, str(i) + '.png'))
