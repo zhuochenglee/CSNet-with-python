@@ -10,10 +10,11 @@ import torch.cuda
 from torchvision.transforms import ToPILImage
 from network import CSNet
 import data_util
+from tqdm import tqdm
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--device', default='cuda', type=str)
-parser.add_argument('--wab', default='epochs_subrate_0.1_blocksize_32/net_epoch_300_0.025189.pth',
+parser.add_argument('--wab', default='epochs_subrate_0.1_blocksize_32/A_BEST',
                     type=str, help='weights and bais')
 parser.add_argument('--test_data', default='testimg', type=str)
 parser.add_argument('--block_size', default=32, type=int)
@@ -45,8 +46,8 @@ print(img_list)
 avg_psnr_predicted = 0.0
 avg_elapsed_time = 0.0
 
-for img_file in img_list:
-    print("processing ", img_file)
+for img_file in tqdm(img_list):
+    # print("processing ", img_file)
     img_ori_y = read_image(img_file)
     img_input = img_ori_y.float()
     # print(img_ori_y.dtype)
@@ -89,7 +90,7 @@ for img_file in img_list:
     img_tar_y = img_tar_y.astype(np.uint8)
 
     psnr_predicted = data_util.psnr(img_tar_y, img_ori_y, shave_border=0)
-    print('PSNR on %s is %.4f' % (img_file, psnr_predicted))
+    # print('PSNR on %s is %.4f' % (img_file, psnr_predicted))
     avg_psnr_predicted += psnr_predicted
 
 print("dataset=", TEST_DATA)
