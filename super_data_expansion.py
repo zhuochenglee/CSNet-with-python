@@ -79,5 +79,5 @@ print(f'total images: {len(processed_images)}')
 select_images = random_select(processed_images, 89600)
 
 for i, image in enumerate(select_images):
-    for j in tqdm(range(89600)):
+    for j in tqdm(range(89600), desc="保存图片"):
         image.save(os.path.join(save_dir, str(i) + '.png'))
