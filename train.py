@@ -24,7 +24,8 @@ BLOCK_SIZE = opt.block_size
 NUM_EPOCHS = opt.num_epochs
 LOAD_EPOCHS = opt.load_epochs
 
-dataset = TrainDataset('processed_images', CROP_SIZE, BLOCK_SIZE)
+# 在此处修改训练数据集路径
+dataset = TrainDataset('BSDS500/train', CROP_SIZE, BLOCK_SIZE)
 
 batchsize = 64
 train_dataloader = DataLoader(dataset, num_workers=0, batch_size=batchsize, shuffle=True)
@@ -49,8 +50,8 @@ loss_fn = nn.MSELoss()
 loss_fn.to(device)
 
 optimizer = torch.optim.Adam(net.parameters(), 0.0004, betas=(0.9, 0.999))
-scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=30, gamma=0.5)
-best_pth = 99999
+scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.3)
+best_pth = float('inf')
 
 for epoch in range(LOAD_EPOCHS, NUM_EPOCHS + 1):
     train_bar = tqdm(train_dataloader)
@@ -71,7 +72,6 @@ for epoch in range(LOAD_EPOCHS, NUM_EPOCHS + 1):
         g_loss = loss_fn(fake_img, target)
         g_loss.backward()
         optimizer.step()
-        scheduler.step()
 
         running_res['g_loss'] += g_loss.item() * batch_size
 
@@ -81,10 +81,12 @@ for epoch in range(LOAD_EPOCHS, NUM_EPOCHS + 1):
         if not os.path.exists(save_dir):
             os.makedirs(save_dir)
         if epoch % 5 == 0:
-            if running_res['g_loss'] / running_res['batch_size'] < best_pth:
-                best_pth = running_res['g_loss'] / running_res['batch_size']
+            current_loss = running_res['g_loss'] / running_res['batch_size']
+            if current_loss < best_pth:
+                best_pth = current_loss
                 torch.save(net.state_dict(),
                            save_dir + '/A_BEST')
             else:
                 torch.save(net.state_dict(), save_dir + '/net_epoch_%d_%6f.pth' % (
-                    epoch, running_res['g_loss'] / running_res['batch_size']))
+                    epoch, current_loss))
+        scheduler.step()
