@@ -78,6 +78,7 @@ processed_images = process_images(image_files)
 print(f'total images: {len(processed_images)}')
 select_images = random_select(processed_images, 89600)
 
-for i, image in enumerate(select_images):
-    for j in tqdm(range(89600), desc="保存图片"):
-        image.save(os.path.join(save_dir, str(i) + '.png'))
+for i, image in tqdm(enumerate(select_images), total=len(select_images), desc="保存图片"):
+    image.save(os.path.join(save_dir, str(i) + '.png'))
+
+print(f"保存完成，等待程序结束")
