@@ -75,7 +75,7 @@ for epoch in range(LOAD_EPOCHS, NUM_EPOCHS + 1):
 
         running_res['g_loss'] += g_loss.item() * batch_size
 
-        train_bar.set_description(desc='[%d] Loss_G: %.4f lr: %.7f' % (
+        train_bar.set_description(desc='[%d] Loss_G: %.7f lr: %.7f' % (
             epoch, running_res['g_loss'] / running_res['batch_size'], optimizer.param_groups[0]['lr']))
         save_dir = 'epochs' + '_subrate_' + str(opt.sub_rate) + '_blocksize_' + str(BLOCK_SIZE)
         if not os.path.exists(save_dir):
@@ -84,7 +84,7 @@ for epoch in range(LOAD_EPOCHS, NUM_EPOCHS + 1):
             if running_res['g_loss'] / running_res['batch_size'] < best_pth:
                 best_pth = running_res['g_loss'] / running_res['batch_size']
                 torch.save(net.state_dict(),
-                           save_dir + '/A_BEST_%d_%6f.pth' % (epoch, running_res['g_loss'] / running_res['batch_size']))
+                           save_dir + '/A_BEST')
             else:
                 torch.save(net.state_dict(), save_dir + '/net_epoch_%d_%6f.pth' % (
                     epoch, running_res['g_loss'] / running_res['batch_size']))
