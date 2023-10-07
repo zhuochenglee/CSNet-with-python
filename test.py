@@ -1,20 +1,20 @@
 import argparse
+import torch.nn.functional as F
+import cv2
 import numpy as np
 import os
 import time
-import cv2
-from PIL import Image
-import torch
 from torchvision.io import read_image
 import torch.cuda
 from torchvision.transforms import ToPILImage
 from network import CSNet
 import data_util
 from tqdm import tqdm
+from pytorch_msssim import ssim
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--device', default='cuda', type=str)
-parser.add_argument('--wab', default='epochs_subrate_0.1_blocksize_32/A_BEST',
+parser.add_argument('--wab', default='epochs_subrate_0.1_blocksize_32/A_BEST.pth',
                     type=str, help='weights and bais')
 parser.add_argument('--test_data', default='testimg', type=str)
 parser.add_argument('--block_size', default=32, type=int)
@@ -41,10 +41,13 @@ for dirpath, dirnames, filenames in os.walk(TEST_DATA):
     for filename in filenames:
         img_list.append(os.path.join(dirpath, filename))
 print('Found %d pictures' % len(img_list))
-print(img_list)
+# print(img_list)
 
 avg_psnr_predicted = 0.0
 avg_elapsed_time = 0.0
+avg_ss = 0.0
+avg_time = 0.0
+print_list = []
 
 for img_file in tqdm(img_list):
     # print("processing ", img_file)
@@ -56,13 +59,14 @@ for img_file in tqdm(img_list):
     # print(img_ori_y.shape)
     img_input = img_input.to(DEVICE)
     model = model.to(DEVICE)
-
     start_time = time.time()
     res = model(img_input)
 
-    elapsed_time = time.time() - start_time
+    res_reshape = F.interpolate(res, size=(180, 180), mode='bilinear', align_corners=False)
+    structural_similarity = ssim(img_input, res_reshape, data_range=1.0)
 
-    avg_time = 0.0
+    print_list.append(f'原始图像{img_file}与重构图像的结构相似度为{structural_similarity:.4f}')
+    elapsed_time = time.time() - start_time
     avg_time += elapsed_time
 
     img_tar_y = res.data[0].cpu().numpy().astype(np.float32)
@@ -96,3 +100,5 @@ for img_file in tqdm(img_list):
 print("dataset=", TEST_DATA)
 print("PSNR_predicted=", avg_psnr_predicted / len(img_list))
 print("average_time=", avg_time / len(img_list))
+for i in print_list:
+    print(i)
