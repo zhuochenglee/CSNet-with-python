@@ -24,12 +24,11 @@ CROP_SIZE = opt.crop_size
 BLOCK_SIZE = opt.block_size
 NUM_EPOCHS = opt.num_epochs
 LOAD_EPOCHS = opt.load_epochs
-
+BATCH_SIZE = opt.batchsize
 # 在此处修改训练数据集路径
 dataset = TrainDataset('BSDS500/train', CROP_SIZE, BLOCK_SIZE)
 
-batchsize = 64
-train_dataloader = DataLoader(dataset, num_workers=0, batch_size=batchsize, shuffle=True)
+train_dataloader = DataLoader(dataset, num_workers=0, batch_size=BATCH_SIZE, shuffle=True)
 
 '''
 for X in train_dataloader:
@@ -46,12 +45,12 @@ device = (
 
 net = network.CSNet(BLOCK_SIZE, opt.sub_rate).to(device)
 print(net)
-
+print(f'using blocksize:{BLOCK_SIZE} cropsize:{CROP_SIZE} epochs:{NUM_EPOCHS} batchsize:{BATCH_SIZE}')
 loss_fn = nn.MSELoss()
 loss_fn.to(device)
 
-optimizer = torch.optim.Adam(net.parameters(), 0.01, betas=(0.9, 0.999))
-scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=40, gamma=0.4)
+optimizer = torch.optim.Adam(net.parameters(), 0.001, betas=(0.9, 0.999))
+scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=5000, gamma=0.4)
 best_pth = float('inf')
 
 start_time = time.time()
