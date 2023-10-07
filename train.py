@@ -1,10 +1,10 @@
-from multiprocessing.spawn import freeze_support
-
+import numpy as np
 import torch
 from torch import nn
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 from data_util import TrainDataset
+from data_util import ssim
 import network
 import argparse
 import os
@@ -56,24 +56,36 @@ best_pth = float('inf')
 for epoch in range(LOAD_EPOCHS, NUM_EPOCHS + 1):
     train_bar = tqdm(train_dataloader)
     # print(train_bar)
-    running_res = {'batch_size': 0, 'g_loss': 0, }
+    running_res = {'batch_size': 0, 'g_loss': 0, 'ssim': 0}
     net.train()
     # scheduler.step()
+    # data和target是一模一样的图片
     for data, target in train_bar:
         # print(target)
         batch_size = data.size(0)
         if batch_size <= 0:
             continue
         running_res['batch_size'] += batch_size
+
         target = target.to(device)
         data = data.to(device)
+
         optimizer.zero_grad()
         fake_img = net(data).to(device)
+        fake_img_np = fake_img.cpu().detach().numpy()
+        target_np = target.cpu().detach().numpy()
+        # print(numpy.asarray(fake_img_np.shape) - 7)\
+        fake_img_np = np.squeeze(fake_img_np, axis=1)
+        target_np = np.squeeze(target_np, axis=1)
+
+        structural_similarity = ssim(fake_img_np, target_np)
+        print(structural_similarity)
         g_loss = loss_fn(fake_img, target)
         g_loss.backward()
         optimizer.step()
 
         running_res['g_loss'] += g_loss.item() * batch_size
+        running_res['ssim'] += structural_similarity
 
         train_bar.set_description(desc='[%d] Loss_G: %.7f lr: %.7f' % (
             epoch, running_res['g_loss'] / running_res['batch_size'], optimizer.param_groups[0]['lr']))
@@ -89,4 +101,8 @@ for epoch in range(LOAD_EPOCHS, NUM_EPOCHS + 1):
             else:
                 torch.save(net.state_dict(), save_dir + '/net_epoch_%d_%6f.pth' % (
                     epoch, current_loss))
+
         scheduler.step()
+    # ssim的最大值为 1.0
+    avg_ssim = running_res['ssim'] / batch_size
+    print(f'avg_ssim:{avg_ssim}')

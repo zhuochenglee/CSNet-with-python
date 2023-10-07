@@ -1,4 +1,6 @@
 import math
+
+import cv2
 import numpy as np
 
 import torch
@@ -33,15 +35,16 @@ def psnr(pred, original, shave_border=0):
 
 # 计算结构相似性 图像必须为灰度图
 def ssim(img1, img2):
-    return structural_similarity(img1, img2)
+    data_range = img1.max() - img1.min()
+    return structural_similarity(img1, img2, data_range=data_range)
 
 
 # 图像增强
 def img_aug(crop_size):
     return Compose([
         RandomCrop(crop_size),
-        RandomHorizontalFlip(p=0.5),
-        RandomVerticalFlip(p=0.5),
+        # RandomHorizontalFlip(p=0.5),
+        # RandomVerticalFlip(p=0.5),
         Grayscale(),
         ToTensor(),
     ])
@@ -84,3 +87,10 @@ class TestimgDataset(Dataset):
 
     def __len__(self):
         return len(self.img_name)
+
+
+if __name__ == '__main__':
+    img1 = cv2.imread('BSDS500/train/2018.jpg', cv2.IMREAD_GRAYSCALE)
+    img2 = cv2.imread('BSDS500/train/2018.jpg', cv2.IMREAD_GRAYSCALE)
+    ss = ssim(img1, img2)
+    print(ss)
