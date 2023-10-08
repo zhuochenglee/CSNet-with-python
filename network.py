@@ -155,11 +155,12 @@ class CSNet(nn.Module):
         res = x + block7
         return res
 
+
 if __name__ == '__main__':
     import torch
 
     freeze_support()
-    img = torch.randn(1, 1, 32, 32)
+    img = torch.randn(1, 1, 180, 180)
     img = img.to('cuda')
     net = CSNet()
     net = net.to('cuda')
