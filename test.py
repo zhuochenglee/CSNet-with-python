@@ -43,11 +43,12 @@ for dirpath, dirnames, filenames in os.walk(TEST_DATA):
 print('Found %d pictures' % len(img_list))
 # print(img_list)
 
-avg_psnr_predicted = 0.0
+# avg_psnr_predicted = 0.0
 avg_elapsed_time = 0.0
-avg_ss = 0.0
+# avg_ss = 0.0
 avg_time = 0.0
-print_list = []
+print_list_ssim = []
+print_list_psnr = []
 
 for img_file in tqdm(img_list):
     # print("processing ", img_file)
@@ -65,7 +66,7 @@ for img_file in tqdm(img_list):
     res_reshape = F.interpolate(res, size=(180, 180), mode='bilinear', align_corners=False)
     structural_similarity = ssim(img_input, res_reshape, data_range=1.0)
 
-    print_list.append(f'原始图像{img_file}与重构图像的结构相似度为{structural_similarity:.4f}')
+    print_list_ssim.append(f'原始图像{img_file}与重构图像的结构相似度为{structural_similarity:.4f}')
     elapsed_time = time.time() - start_time
     avg_time += elapsed_time
 
@@ -95,10 +96,9 @@ for img_file in tqdm(img_list):
 
     psnr_predicted = data_util.psnr(img_tar_y, img_ori_y, shave_border=0)
     # print('PSNR on %s is %.4f' % (img_file, psnr_predicted))
-    avg_psnr_predicted += psnr_predicted
+    print_list_psnr.append(f'峰值信噪比为{psnr_predicted:.4f}')
 
 print("dataset=", TEST_DATA)
-print("PSNR_predicted=", avg_psnr_predicted / len(img_list))
 print("average_time=", avg_time / len(img_list))
-for i in print_list:
-    print(i)
+for i, j in zip(print_list_ssim, print_list_psnr):
+    print(f'{i}|||{j}')
