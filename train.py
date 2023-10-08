@@ -16,18 +16,22 @@ parser.add_argument('--crop_size', default=96, type=int, help='training images c
 parser.add_argument('--block_size', default=32, type=int, help='CS block size')
 parser.add_argument('--sub_rate', default=0.1, type=float, help='sampling sub rate')
 parser.add_argument('--batchsize', default=64, type=int, help='train batch size')
-parser.add_argument('--num_epochs', default=100, type=int)
+parser.add_argument('--num_epochs', default=100, type=int, help='number of round to be trained')
 parser.add_argument('--load_epochs', default=0, type=int)
+parser.add_argument('--lr', default=0.001, type=int, help='learning rate')
+parser.add_argument('--step_size', default=5000, type=int, help='when to adjustment of learning rate')
+parser.add_argument('--dataset', default='BSDS500/train', type=str, help='dataset path')
 opt = parser.parse_args()
-
 CROP_SIZE = opt.crop_size
 BLOCK_SIZE = opt.block_size
 NUM_EPOCHS = opt.num_epochs
 LOAD_EPOCHS = opt.load_epochs
 BATCH_SIZE = opt.batchsize
-# 在此处修改训练数据集路径
-dataset = TrainDataset('BSDS500/train', CROP_SIZE, BLOCK_SIZE)
+LR = opt.lr
+SETP_SIZE = opt.step_size
+DATASET = opt.dataset
 
+dataset = TrainDataset(DATASET, CROP_SIZE, BLOCK_SIZE)
 train_dataloader = DataLoader(dataset, num_workers=0, batch_size=BATCH_SIZE, shuffle=True)
 
 '''
@@ -49,8 +53,8 @@ print(f'using blocksize:{BLOCK_SIZE} cropsize:{CROP_SIZE} epochs:{NUM_EPOCHS} ba
 loss_fn = nn.MSELoss()
 loss_fn.to(device)
 
-optimizer = torch.optim.Adam(net.parameters(), 0.001, betas=(0.9, 0.999))
-scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=5000, gamma=0.4)
+optimizer = torch.optim.Adam(net.parameters(), LR, betas=(0.9, 0.999))
+scheduler = torch.optim.lr_scheduler.StepLR(optimizer, SETP_SIZE, gamma=0.4)
 best_pth = float('inf')
 
 start_time = time.time()
