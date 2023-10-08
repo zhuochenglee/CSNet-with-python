@@ -78,12 +78,12 @@ class TestimgDataset(Dataset):
     def __getitem__(self, item):
         hr_image = Image.open(self.img_name[item])
         w, h = hr_image.size
-        w = int(np.float(w / self.blocksize) * self.blocksize)
-        h = int(np.float(h / self.blocksize) * self.blocksize)
+        w = int(np.float32(w / self.blocksize) * self.blocksize)
+        h = int(np.float32(h / self.blocksize) * self.blocksize)
         cropsize = (h, w)
         hr_image = CenterCrop(cropsize)(hr_image)
         hr_image = Grayscale()(hr_image)
-        return ToTensor()(hr_image), ToTensor()(hr_image)
+        return ToTensor()(hr_image)
 
     def __len__(self):
         return len(self.img_name)

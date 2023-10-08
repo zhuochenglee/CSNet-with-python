@@ -11,6 +11,8 @@ from network import CSNet
 import data_util
 from tqdm import tqdm
 from pytorch_msssim import ssim
+from torch.utils.data import DataLoader
+from data_util import TestimgDataset
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--device', default='cuda', type=str)
@@ -19,6 +21,7 @@ parser.add_argument('--wab', default='epochs_subrate_0.1_blocksize_32/A_BEST.pth
 parser.add_argument('--test_data', default='testimg', type=str)
 parser.add_argument('--block_size', default=32, type=int)
 parser.add_argument('--sub_rate', default=0.1, type=float)
+parser.add_argument('--dataset', default='testimg', type=str)
 # parser.add_argument('save_dir', default="results", type=str)
 
 opt = parser.parse_args()
@@ -27,6 +30,7 @@ WAB = opt.wab
 TEST_DATA = opt.test_data
 BLOCK_SIZE = opt.block_size
 SUB_RATE = opt.sub_rate
+TESTDATA = opt.dataset
 # SAVE_DIR = opt.save_dir
 
 if DEVICE == 'cuda' and not torch.cuda.is_available():
@@ -37,12 +41,15 @@ model.load_state_dict(torch.load(WAB))
 model.eval()
 
 img_list = []
+
 for dirpath, dirnames, filenames in os.walk(TEST_DATA):
     for filename in filenames:
         img_list.append(os.path.join(dirpath, filename))
-print('Found %d pictures' % len(img_list))
 # print(img_list)
-
+'''
+testdata = TestimgDataset(TESTDATA, 32)
+test_dataloader = DataLoader(testdata)
+'''
 # avg_psnr_predicted = 0.0
 avg_elapsed_time = 0.0
 # avg_ss = 0.0
