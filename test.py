@@ -5,6 +5,7 @@ import numpy as np
 import os
 import time
 from torchvision.io import read_image
+from PIL import Image
 import torch.cuda
 from torchvision.transforms import ToPILImage
 from network import CSNet
@@ -13,12 +14,14 @@ from tqdm import tqdm
 from pytorch_msssim import ssim
 from torch.utils.data import DataLoader
 from data_util import TestimgDataset
-
+'''
+以下代码为错误的测试代码，请勿运行
+'''
 parser = argparse.ArgumentParser()
 parser.add_argument('--device', default='cuda', type=str)
 parser.add_argument('--wab', default='epochs_subrate_0.1_blocksize_32/A_BEST.pth',
                     type=str, help='weights and bais')
-parser.add_argument('--test_data', default='testimg', type=str)
+parser.add_argument('--test_data', default='BMP', type=str)
 parser.add_argument('--block_size', default=32, type=int)
 parser.add_argument('--sub_rate', default=0.1, type=float)
 parser.add_argument('--dataset', default='testimg', type=str)
@@ -59,7 +62,10 @@ print_list_psnr = []
 
 for img_file in tqdm(img_list):
     # print("processing ", img_file)
-    img_ori_y = read_image(img_file)
+    img_ori_y = Image.open(img_file)
+    img_ori_y = img_ori_y.convert('L')
+    img_ori_y = torch.tensor(list(img_ori_y.getdata())).view(img_ori_y.size[1], img_ori_y.size[0])
+    img_ori_y = img_ori_y.unsqueeze(0)
     img_input = img_ori_y.float()
     # print(img_ori_y.dtype)
     img_input = img_input / 255.
@@ -70,7 +76,7 @@ for img_file in tqdm(img_list):
     start_time = time.time()
     res = model(img_input)
 
-    res_reshape = F.interpolate(res, size=(180, 180), mode='bilinear', align_corners=False)
+    res_reshape = F.interpolate(res, size=(img_input.shape[2], img_input.shape[3]), mode='bilinear', align_corners=False)
     structural_similarity = ssim(img_input, res_reshape, data_range=1.0)
 
     print_list_ssim.append(f'原始图像{img_file}与重构图像的结构相似度为{structural_similarity:.4f}')
