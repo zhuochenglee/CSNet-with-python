@@ -1,11 +1,12 @@
 from multiprocessing import freeze_support
-
+import torch.nn.functional as F
 import numpy
 import torch
 import torch.nn as nn
 from torchvision import transforms
 from torch.autograd import Variable
-
+import torchvision.transforms as transforms
+import matplotlib.pyplot as plt
 
 class ResidualBlock(nn.Module):
     def __init__(self, input_channels, num_channels,
@@ -124,8 +125,11 @@ class CSNet(nn.Module):
     def __init__(self, blocksize=32, subrate=0.1):
         super(CSNet, self).__init__()
         self.blocksize = blocksize
-        self.samping = nn.Conv2d(1, int(numpy.round(blocksize * blocksize * subrate)),
-                                 blocksize, stride=blocksize, padding=0, bias=False)
+        self.fc = nn.Linear(96, 96)
+        self.samping = nn.Conv2d(1, int(numpy.round(blocksize * blocksize * subrate)), blocksize,
+                                 stride=blocksize, padding=0,
+                                 bias=False)
+
         self.init_conv = nn.Conv2d(int(numpy.round(blocksize * blocksize * subrate)),
                                    blocksize * blocksize, 1, stride=1, padding=0)
         self.block1 = nn.Sequential(
@@ -140,7 +144,17 @@ class CSNet(nn.Module):
         self.conv = nn.Conv2d(64, 1, kernel_size=3, stride=1, padding=1)
 
     def forward(self, x):
+        cs = self.fc(x)
+        """cs = cs.clamp(0,1)
+        cs = cs.squeeze(1)
+        cs = torch.mean(cs, dim=0, keepdim=True)
+        img = transforms.ToPILImage()(cs)
+        plt.imshow(img)
+        plt.show()
         cs = self.samping(x)
+        cs = F.interpolate(cs, scale_factor=2, mode='bilinear', align_corners=False)
+        cs = self.dilation_conv(cs)
+        print(cs.shape)"""
         # 初始重建
         x = self.init_conv(cs)
         x = My_Reshape_Adap(x, self.blocksize)
@@ -160,7 +174,7 @@ if __name__ == '__main__':
     import torch
 
     freeze_support()
-    img = torch.randn(1, 1, 180, 180)
+    img = torch.randn(1, 1, 96, 96)
     img = img.to('cuda')
     net = CSNet()
     net = net.to('cuda')
