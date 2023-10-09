@@ -25,7 +25,8 @@ def preprocess_image(image_path):
 
 def flip_image(image):
     # 水平翻转图像
-    flipped_image = image.transpose(Image.FLIP_LEFT_RIGHT)
+    flipped_image = image.transpose(Image.Transpose.FLIP_LEFT_RIGHT)
+
     return flipped_image
 
 
