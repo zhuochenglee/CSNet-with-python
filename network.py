@@ -144,15 +144,15 @@ class CSNet(nn.Module):
         self.conv = nn.Conv2d(64, 1, kernel_size=3, stride=1, padding=1)
 
     def forward(self, x):
-        cs = self.fc(x)
-        """cs = cs.clamp(0,1)
+        """cs = self.fc(x)
+        cs = cs.clamp(0,1)
         cs = cs.squeeze(1)
         cs = torch.mean(cs, dim=0, keepdim=True)
         img = transforms.ToPILImage()(cs)
         plt.imshow(img)
-        plt.show()
+        plt.show()"""
         cs = self.samping(x)
-        cs = F.interpolate(cs, scale_factor=2, mode='bilinear', align_corners=False)
+        """cs = F.interpolate(cs, scale_factor=2, mode='bilinear', align_corners=False)
         cs = self.dilation_conv(cs)
         print(cs.shape)"""
         # 初始重建
