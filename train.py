@@ -20,7 +20,7 @@ parser.add_argument('--num_epochs', default=100, type=int, help='number of round
 parser.add_argument('--load_epochs', default=0, type=int)
 parser.add_argument('--lr', default=0.001, type=int, help='learning rate')
 parser.add_argument('--step_size', default=5000, type=int, help='when to adjustment of learning rate')
-parser.add_argument('--dataset', default='BSDS500/train', type=str, help='dataset path')
+parser.add_argument('--dataset', default='BSDS500/processed_images', type=str, help='dataset path')
 opt = parser.parse_args()
 CROP_SIZE = opt.crop_size
 BLOCK_SIZE = opt.block_size
