@@ -1,17 +1,19 @@
-import numpy as np
 import torch
 from torch import nn
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 from data_util import TrainDataset
-from data_util import ssim
 import network
 import argparse
 import os
 import time
+from torch.utils.tensorboard import SummaryWriter
+from datetime import datetime
+
+current_time = datetime.now().date()
+writer = SummaryWriter(log_dir=f'./runs/exp{current_time}')
 
 parser = argparse.ArgumentParser()
-
 parser.add_argument('--crop_size', default=96, type=int, help='training images crop size')
 parser.add_argument('--block_size', default=32, type=int, help='CS block size')
 parser.add_argument('--sub_rate', default=0.1, type=float, help='sampling sub rate')
@@ -90,6 +92,7 @@ for epoch in range(LOAD_EPOCHS, NUM_EPOCHS + 1):
         optimizer.step()
 
         running_res['g_loss'] += g_loss.item() * batch_size
+        writer.add_scalar(tag="loss/train", scalar_value=running_res['g_loss'])
         # running_res['ssim'] += structural_similarity
 
         train_bar.set_description(desc='[%d] Loss_G: %.7f lr: %.7f' % (
@@ -113,3 +116,4 @@ for epoch in range(LOAD_EPOCHS, NUM_EPOCHS + 1):
     # print(f'avg_ssim:{avg_ssim}')
 total_time = time.time() - start_time
 print(f'total time:{total_time}')
+writer.close()
