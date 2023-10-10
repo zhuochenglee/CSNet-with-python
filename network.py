@@ -151,6 +151,7 @@ class CSNet(nn.Module):
         img = transforms.ToPILImage()(cs)
         plt.imshow(img)
         plt.show()"""
+        x = self.fc(x)
         cs = self.samping(x)
         """cs = F.interpolate(cs, scale_factor=2, mode='bilinear', align_corners=False)
         cs = self.dilation_conv(cs)

@@ -69,7 +69,7 @@ class TrainDataset(Dataset):
             return tr_image, tr_image
 
 
-'''class TestimgDataset(Dataset):
+"""class TestimgDataset(Dataset):
     def __init__(self, img_file, blocksize):
         super(TestimgDataset, self).__init__()
         self.img_name = [join(img_file, x) for x in os.listdir(img_file)]
@@ -86,7 +86,7 @@ class TrainDataset(Dataset):
         return ToTensor()(hr_image)
 
     def __len__(self):
-        return len(self.img_name)'''
+        return len(self.img_name)"""
 
 
 if __name__ == '__main__':
