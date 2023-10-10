@@ -23,6 +23,7 @@ parser.add_argument('--load_epochs', default=0, type=int)
 parser.add_argument('--lr', default=0.001, type=int, help='learning rate')
 parser.add_argument('--step_size', default=5000, type=int, help='when to adjustment of learning rate')
 parser.add_argument('--dataset', default='BSDS500/processed_images', type=str, help='dataset path')
+parser.add_argument('--patience', default=7000, type=int, help='early stopping')
 opt = parser.parse_args()
 CROP_SIZE = opt.crop_size
 BLOCK_SIZE = opt.block_size
@@ -32,6 +33,7 @@ BATCH_SIZE = opt.batchsize
 LR = opt.lr
 SETP_SIZE = opt.step_size
 DATASET = opt.dataset
+PATIENCE = opt.patience
 
 dataset = TrainDataset(DATASET, CROP_SIZE, BLOCK_SIZE)
 train_dataloader = DataLoader(dataset, num_workers=0, batch_size=BATCH_SIZE, shuffle=True)
@@ -58,6 +60,7 @@ loss_fn.to(device)
 optimizer = torch.optim.Adam(net.parameters(), LR, betas=(0.9, 0.999))
 scheduler = torch.optim.lr_scheduler.StepLR(optimizer, SETP_SIZE, gamma=0.4)
 best_pth = float('inf')
+counter_it = 0
 
 start_time = time.time()
 for epoch in range(LOAD_EPOCHS, NUM_EPOCHS + 1):
@@ -109,7 +112,10 @@ for epoch in range(LOAD_EPOCHS, NUM_EPOCHS + 1):
             else:
                 torch.save(net.state_dict(), save_dir + '/net_epoch_%d_%6f.pth' % (
                     epoch, current_loss))
-
+                counter_it += 1
+        if counter_it == PATIENCE:
+            print(f'连续{counter_it}轮未下降loss，已停止训练')
+            break
         scheduler.step()
     # ssim的最大值为 1.0
     # avg_ssim = running_res['ssim'] / batch_size
