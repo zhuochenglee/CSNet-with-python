@@ -11,7 +11,16 @@ from torch.utils.tensorboard import SummaryWriter
 from datetime import datetime
 
 current_time = datetime.now().date()
-writer = SummaryWriter(log_dir=f'./runs/exp{current_time}')
+with open('exp_counter.txt', 'r') as file:
+    line = file.readline()
+line = line.rstrip('\n')
+line = int(line)
+writer = SummaryWriter(log_dir=f'./runs/exp{current_time}_实验名_{line}')
+line += 1
+line = str(line)
+line = line + '\n'
+with open('exp_counter.txt', 'w') as file:
+    file.writelines(line)
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--crop_size', default=96, type=int, help='training images crop size')
@@ -22,7 +31,7 @@ parser.add_argument('--num_epochs', default=100, type=int, help='number of round
 parser.add_argument('--load_epochs', default=0, type=int)
 parser.add_argument('--lr', default=0.001, type=int, help='learning rate')
 parser.add_argument('--step_size', default=5000, type=int, help='when to adjustment of learning rate')
-parser.add_argument('--dataset', default='BSDS500/processed_images', type=str, help='dataset path')
+parser.add_argument('--dataset', default='Train400', type=str, help='dataset path')
 parser.add_argument('--patience', default=7000, type=int, help='early stopping')
 opt = parser.parse_args()
 CROP_SIZE = opt.crop_size
@@ -95,7 +104,8 @@ for epoch in range(LOAD_EPOCHS, NUM_EPOCHS + 1):
         optimizer.step()
 
         running_res['g_loss'] += g_loss.item() * batch_size
-        writer.add_scalar(tag="loss/train", scalar_value=running_res['g_loss'])
+        writer.add_scalar('loss_g', g_loss.item(), epoch)
+        writer.flush()
         # running_res['ssim'] += structural_similarity
 
         train_bar.set_description(desc='[%d] Loss_G: %.7f lr: %.7f' % (
