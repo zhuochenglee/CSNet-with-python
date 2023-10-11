@@ -2,6 +2,7 @@ import torch
 from torch import nn
 from torch.utils.data import DataLoader
 from tqdm import tqdm
+import test_code
 from data_util import TrainDataset
 import network
 import argparse
@@ -9,18 +10,6 @@ import os
 import time
 from torch.utils.tensorboard import SummaryWriter
 from datetime import datetime
-
-current_time = datetime.now().date()
-with open('exp_counter.txt', 'r') as file:
-    line = file.readline()
-line = line.rstrip('\n')
-line = int(line)
-writer = SummaryWriter(log_dir=f'./runs/exp{current_time}_实验名_{line}')
-line += 1
-line = str(line)
-line = line + '\n'
-with open('exp_counter.txt', 'w') as file:
-    file.writelines(line)
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--crop_size', default=96, type=int, help='training images crop size')
@@ -31,8 +20,9 @@ parser.add_argument('--num_epochs', default=100, type=int, help='number of round
 parser.add_argument('--load_epochs', default=0, type=int)
 parser.add_argument('--lr', default=0.001, type=int, help='learning rate')
 parser.add_argument('--step_size', default=5000, type=int, help='when to adjustment of learning rate')
-parser.add_argument('--dataset', default='Train400', type=str, help='dataset path')
+parser.add_argument('--dataset', default='BSDS500/train', type=str, help='dataset path')
 parser.add_argument('--patience', default=7000, type=int, help='early stopping')
+parser.add_argument('--first', default=False, type=bool, help='new to this code')
 opt = parser.parse_args()
 CROP_SIZE = opt.crop_size
 BLOCK_SIZE = opt.block_size
@@ -43,6 +33,8 @@ LR = opt.lr
 SETP_SIZE = opt.step_size
 DATASET = opt.dataset
 PATIENCE = opt.patience
+FIRST = opt.first
+
 
 dataset = TrainDataset(DATASET, CROP_SIZE, BLOCK_SIZE)
 train_dataloader = DataLoader(dataset, num_workers=0, batch_size=BATCH_SIZE, shuffle=True)
@@ -52,6 +44,24 @@ for X in train_dataloader:
     print(f"Shape of X [N, C, H, W]: {X.shape}")
     break
 '''
+
+current_time = datetime.now().date()
+if not os.path.exists('runs'):
+    os.makedirs('runs')
+with open('exp_counter.txt', 'r') as file:
+    line = file.readline()
+if FIRST:
+    line = "0\n"
+line = line.rstrip('\n')
+line = int(line)
+writer = SummaryWriter(log_dir=f'./runs/exp{current_time}_实验名_{line}')
+line += 1
+line = str(line)
+line = line + '\n'
+with open('exp_counter.txt', 'w') as file:
+    file.writelines(line)
+
+
 device = (
     "cuda"
     if torch.cuda.is_available()
