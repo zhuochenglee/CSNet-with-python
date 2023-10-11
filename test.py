@@ -18,7 +18,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--device', default='cuda', type=str)
 parser.add_argument('--wab', default='epochs_subrate_0.1_blocksize_32/A_BEST.pth',
                     type=str, help='weights and bais')
-parser.add_argument('--test_data', default='BMP', type=str)
+parser.add_argument('--test_data', default='testimg', type=str)
 parser.add_argument('--block_size', default=32, type=int)
 parser.add_argument('--sub_rate', default=0.1, type=float)
 # parser.add_argument('--dataset', default='testimg', type=str)
