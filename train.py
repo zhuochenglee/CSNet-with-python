@@ -130,6 +130,7 @@ for epoch in range(LOAD_EPOCHS, NUM_EPOCHS + 1):
                 best_pth = current_loss
                 torch.save(net.state_dict(),
                            save_dir + '/A_BEST_%d.pth' % best_pth)
+                counter_it = 0
             else:
                 torch.save(net.state_dict(), save_dir + '/net_epoch_%d_%6f.pth' % (
                     epoch, current_loss))
