@@ -16,7 +16,7 @@ from pytorch_msssim import ssim
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--device', default='cuda', type=str)
-parser.add_argument('--wab', default='epochs_subrate_0.1_blocksize_32/A_BEST_1.pth',
+parser.add_argument('--wab', default='epochs_subrate_0.1_blocksize_32/A_BEST_0.pth',
                     type=str, help='weights and bais')
 parser.add_argument('--test_data', default='testimg', type=str)
 parser.add_argument('--block_size', default=32, type=int)

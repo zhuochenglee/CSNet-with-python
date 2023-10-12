@@ -126,7 +126,7 @@ class CSNet(nn.Module):
         super(CSNet, self).__init__()
         self.blocksize = blocksize
         self.samping = nn.Conv2d(1, int(numpy.round(blocksize * blocksize * subrate)), blocksize,
-                                 stride=blocksize, padding=0,
+                                 stride=blocksize, padding=18, dilation=2,
                                  bias=False)
 
         self.init_conv = nn.Conv2d(int(numpy.round(blocksize * blocksize * subrate)),
