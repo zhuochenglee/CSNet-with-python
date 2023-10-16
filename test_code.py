@@ -1,182 +1,147 @@
-from multiprocessing import freeze_support
-import torch.nn.functional as F
-import numpy
 import torch
-import torch.nn as nn
-from torchvision import transforms
-from torch.autograd import Variable
-import torchvision.transforms as transforms
-import matplotlib.pyplot as plt
-
-class ResidualBlock(nn.Module):
-    def __init__(self, input_channels, num_channels,
-                 use_1x1conv=False, has_bn=False, strides=1):
-        super(ResidualBlock, self).__init__()
-        self.has_bn = has_bn
-        self.conv1 = nn.Conv2d(input_channels, num_channels, kernel_size=3, padding=1)
-        if self.has_bn:
-            self.bn1 = nn.BatchNorm2d(input_channels)
-        self.prelu = nn.PReLU()
-        self.conv2 = nn.Conv2d(input_channels, num_channels, kernel_size=3, padding=1)
-        if self.has_bn:
-            self.bn2 = nn.BatchNorm2d(input_channels)
-
-    def forward(self, x):
-        y = self.conv1(x)
-        if self.has_bn:
-            y = self.bn1(y)
-        y = self.prelu(y)
-        y = self.conv2(y)
-        if self.has_bn:
-            y = self.bn2(y)
-        return x + y
+import torch.nn.functional as F
+from torch.utils.data import Dataset, DataLoader
+from data_util import TrainDataset
+import torch.multiprocessing as mp
+from torch.utils.data.distributed import DistributedSampler
+from torch.nn.parallel import DistributedDataParallel as DDP
+from torch.distributed import init_process_group, destroy_process_group
+import os
+from network import CSNet
+from tqdm import tqdm
+from torch import nn
+from torch.utils.tensorboard import SummaryWriter
+from datetime import datetime
 
 
-# reshape and concat
-'''
-def reshape_concat(img, blocksize):
-    transform = transforms.Compose([
-        transforms.ToTensor()
-    ])
-    img_tensor = transform(img)
-    img_tensor = img_tensor.expand(1, -1, -1, -1)
-    data = torch.clone(img_tensor.data)
-    b_ = data.shape[0]  # batch-size
-    c_ = data.shape[1]  # channels
-    w_ = data.shape[2]  # width
-    h_ = data.shape[3]  # height
-    output = torch.zeros(b_, int(c_ / blocksize / blocksize),
-                         int(w_ * blocksize), int(h_ * blocksize))
-    for i in range(0, w_):
-        for j in range(0, h_):
-            data_temp = data[:, :, i, j]
-            data_temp = data_temp.view(b_, int(c_ / blocksize / blocksize), blocksize, blocksize)
-            output[:, :, i * blocksize: (i + 1) * blocksize, j * blocksize: (j + 1) * blocksize] += data_temp
-    return output
-'''
+def ddp_setup(rank, world_size):
+    """
+    Args:
+        rank: Unique identifier of each process
+        world_size: Total number of processes
+    """
+    os.environ["MASTER_ADDR"] = "localhost"
+    os.environ["MASTER_PORT"] = "12355"
+    init_process_group(backend="nccl", rank=rank, world_size=world_size)
+    torch.cuda.set_device(rank)
 
 
-class Reshape_Concat_Adap(torch.autograd.Function):
-    blocksize = 0
+class Trainer:
+    def __init__(
+            self,
+            model: torch.nn.Module,
+            train_data: DataLoader,
+            optimizer: torch.optim.Optimizer,
+            gpu_id: int,
+            save_every: int,
+    ) -> None:
+        self.gpu_id = gpu_id
+        self.model = model.to(gpu_id)
+        self.train_data = train_data
+        self.optimizer = optimizer
+        self.save_every = save_every
+        self.model = DDP(model, device_ids=[gpu_id])
 
-    def __init__(self, block_size):
-        # super(Reshape_Concat_Adap, self).__init__()
-        Reshape_Concat_Adap.blocksize = block_size
-
-    @staticmethod
-    def forward(ctx, input_, ):
-        ctx.save_for_backward(input_)
-
-        data = torch.clone(input_.data)
-        b_ = data.shape[0]
-        c_ = data.shape[1]
-        w_ = data.shape[2]
-        h_ = data.shape[3]
-
-        output = torch.zeros((b_,
-                              int(c_ / Reshape_Concat_Adap.blocksize / Reshape_Concat_Adap.blocksize),
-                              int(w_ * Reshape_Concat_Adap.blocksize),
-                              int(h_ * Reshape_Concat_Adap.blocksize))).cuda()
-
-        for i in range(0, w_):
-            for j in range(0, h_):
-                data_temp = data[:, :, i, j]
-                # data_temp = torch.zeros(data_t.shape).cuda() + data_t
-                # data_temp = data_temp.contiguous()
-                data_temp = data_temp.view((b_, int(c_ / Reshape_Concat_Adap.blocksize / Reshape_Concat_Adap.blocksize),
-                                            Reshape_Concat_Adap.blocksize, Reshape_Concat_Adap.blocksize))
-                # print data_temp.shape
-                output[:, :, i * Reshape_Concat_Adap.blocksize:(i + 1) * Reshape_Concat_Adap.blocksize,
-                j * Reshape_Concat_Adap.blocksize:(j + 1) * Reshape_Concat_Adap.blocksize] += data_temp
-
-        return output
-
-    @staticmethod
-    def backward(ctx, grad_output):
-        inp, = ctx.saved_tensors
-        input_ = torch.clone(inp.data)
-        grad_input = torch.clone(grad_output.data)
-
-        b_ = input_.shape[0]
-        c_ = input_.shape[1]
-        w_ = input_.shape[2]
-        h_ = input_.shape[3]
-
-        output = torch.zeros((b_, c_, w_, h_)).cuda()
-        output = output.view(b_, c_, w_, h_)
-        for i in range(0, w_):
-            for j in range(0, h_):
-                data_temp = grad_input[:, :, i * Reshape_Concat_Adap.blocksize:(i + 1) * Reshape_Concat_Adap.blocksize,
-                            j * Reshape_Concat_Adap.blocksize:(j + 1) * Reshape_Concat_Adap.blocksize]
-                # data_temp = torch.zeros(data_t.shape).cuda() + data_t
-                data_temp = data_temp.contiguous()
-                data_temp = data_temp.view((b_, c_, 1, 1))
-                output[:, :, i, j] += torch.squeeze(data_temp)
-
-        return Variable(output)
+    def _run_batch(self, train_bar, epoch):
+        running_res = {'batch_size': 0, 'g_loss': 0, 'ssim': 0}
+        loss_fn = nn.HuberLoss().to(self.gpu_id)
+        FIRST = False
+        current_time = datetime.now().date()
+        if not os.path.exists('runs'):
+            os.makedirs('runs')
+        with open('exp_counter.txt', 'r') as file:
+            line = file.readline()
+        if FIRST:
+            line = "0\n"
+        line = line.rstrip('\n')
+        line = int(line)
+        writer = SummaryWriter(log_dir=f'./runs/exp{current_time}_实验名_{line}')
+        line += 1
+        line = str(line)
+        line = line + '\n'
+        with open('exp_counter.txt', 'w') as file:
+            file.writelines(line)
 
 
-def My_Reshape_Adap(input, blocksize):
-    return Reshape_Concat_Adap(blocksize).apply(input)
+
+        for data, target in train_bar:
+            bs = data.size(0)
+            if bs <= 0:
+                continue
+            running_res['batch_size'] += bs
+            target = target.to(self.gpu_id)
+            data = data.to(self.gpu_id)
+            self.optimizer.zero_grad()
+            fake_img = self.model(data).to(self.gpu_id)
+            g_loss = loss_fn(fake_img, target)
+            g_loss.backward()
+            self.optimizer.step()
+            running_res['g_loss'] += g_loss.item() * bs
+            if self.gpu_id == 0:
+                writer.add_scalar('loss_g', g_loss.item(), epoch)
 
 
-# CSNet
-class CSNet(nn.Module):
-    def __init__(self, blocksize=32, subrate=0.1):
-        super(CSNet, self).__init__()
-        self.blocksize = blocksize
-        self.samping = nn.Conv2d(1, int(numpy.round(blocksize * blocksize * subrate)), blocksize,
-                                 stride=blocksize, padding=18, dilation=2,
-                                 bias=False)
 
-        self.init_conv = nn.Conv2d(int(numpy.round(blocksize * blocksize * subrate)),
-                                   blocksize * blocksize, 1, stride=1, padding=0)
-        self.block1 = nn.Sequential(
-            nn.Conv2d(1, 64, kernel_size=3, stride=1, padding=1),
-            nn.ReLU()
-        )
-        self.block2 = ResidualBlock(64, 64, has_bn=True)
-        self.block3 = ResidualBlock(64, 64, has_bn=True)
-        self.block4 = ResidualBlock(64, 64, has_bn=True)
-        self.block5 = ResidualBlock(64, 64, has_bn=True)
-        self.block6 = ResidualBlock(64, 64, has_bn=True)
-        self.conv = nn.Conv2d(64, 1, kernel_size=3, stride=1, padding=1)
-
-    def forward(self, x):
-        """cs = self.fc(x)
-        cs = cs.clamp(0,1)
-        cs = cs.squeeze(1)
-        cs = torch.mean(cs, dim=0, keepdim=True)
-        img = transforms.ToPILImage()(cs)
-        plt.imshow(img)
-        plt.show()"""
-        cs = self.samping(x)
-        """cs = F.interpolate(cs, scale_factor=2, mode='bilinear', align_corners=False)
-        cs = self.dilation_conv(cs)
-        print(cs.shape)"""
-        # 初始重建
-        x = self.init_conv(cs)
-        x = My_Reshape_Adap(x, self.blocksize)
-        # 深度重建
-        block1 = self.block1(x)
-        block2 = self.block2(block1)
-        block3 = self.block3(block2)
-        block4 = self.block4(block3)
-        block5 = self.block5(block4)
-        block6 = self.block6(block5)
-        block7 = self.conv(block6)
-        res = x + block7
-        return res
+    def _run_epoch(self, epoch):
+        b_sz = len(next(iter(self.train_data))[0])
+        print(f"[GPU{self.gpu_id}] Epoch {epoch} | Batchsize: {b_sz} | Steps: {len(self.train_data)}")
+        self.train_data.sampler.set_epoch(epoch)
+        train_bar = tqdm(self.train_data)
+        """for source, targets in train_bar:
+            source = source.to(self.gpu_id)
+            targets = targets.to(self.gpu_id)"""
+        self._run_batch(train_bar, epoch)
 
 
-if __name__ == '__main__':
-    import torch
+def _save_checkpoint(self, epoch):
+    ckp = self.model.module.state_dict()
+    PATH = "checkpoint.pt"
+    torch.save(ckp, PATH)
+    print(f"Epoch {epoch} | Training checkpoint saved at {PATH}")
 
-    freeze_support()
-    img = torch.randn(1, 1, 180, 180)
-    img = img.to('cuda')
-    net = CSNet()
-    net = net.to('cuda')
-    out = net(img)
-    print(out.detach().cpu().numpy())
-    print(out.shape)
+
+def train(self, max_epochs: int):
+    for epoch in range(max_epochs):
+        self._run_epoch(epoch)
+        if self.gpu_id == 0 and epoch % self.save_every == 0:
+            self._save_checkpoint(epoch)
+
+
+def load_train_objs():
+    train_set = TrainDataset('BSDS500/train', 96, 32)  # load your dataset
+    model = CSNet()  # load your model
+    model.train()
+    optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
+    return train_set, model, optimizer
+
+
+def prepare_dataloader(dataset: Dataset, batch_size: int):
+    return DataLoader(
+        dataset,
+        batch_size=batch_size,
+        pin_memory=True,
+        shuffle=False,
+        sampler=DistributedSampler(dataset)
+    )
+
+
+def main(rank: int, world_size: int, save_every: int, total_epochs: int, batch_size: int):
+    ddp_setup(rank, world_size)
+    dataset, model, optimizer = load_train_objs()
+    train_data = prepare_dataloader(dataset, batch_size)
+    trainer = Trainer(model, train_data, optimizer, rank, save_every)
+    trainer.train(total_epochs)
+    destroy_process_group()
+
+
+if __name__ == "__main__":
+    import argparse
+
+    parser = argparse.ArgumentParser(description='simple distributed training job')
+    parser.add_argument('total_epochs', default=100, type=int, help='Total epochs to train the model')
+    parser.add_argument('save_every', default=5, type=int, help='How often to save a snapshot')
+    parser.add_argument('--batch_size', default=64, type=int, help='Input batch size on each device (default: 32)')
+    args = parser.parse_args()
+
+    world_size = torch.cuda.device_count()
+    mp.spawn(main, args=(world_size, args.save_every, args.total_epochs, args.batch_size), nprocs=world_size)
