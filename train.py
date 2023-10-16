@@ -73,7 +73,7 @@ device = (
 net = network.CSNet(BLOCK_SIZE, opt.sub_rate).to(device)
 print(net)
 print(f'using blocksize:{BLOCK_SIZE} cropsize:{CROP_SIZE} epochs:{NUM_EPOCHS} batchsize:{BATCH_SIZE}')
-loss_fn = nn.MSELoss()
+loss_fn = nn.HuberLoss()
 loss_fn.to(device)
 
 optimizer = torch.optim.Adam(net.parameters(), LR, betas=(0.9, 0.999))
