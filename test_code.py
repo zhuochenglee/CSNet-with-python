@@ -95,6 +95,8 @@ class Trainer:
 
 def _save_checkpoint(self, epoch):
     ckp = self.model.module.state_dict()
+    if not os.path.exists("muti_GPU_res"):
+        os.makedirs('muti_GPU_res')
     PATH = "checkpoint.pt"
     torch.save(ckp, PATH)
     print(f"Epoch {epoch} | Training checkpoint saved at {PATH}")
