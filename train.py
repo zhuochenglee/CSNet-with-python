@@ -2,6 +2,8 @@ import torch
 from torch import nn
 from torch.utils.data import DataLoader
 from tqdm import tqdm
+
+import network_new
 import test_code
 from data_util import TrainDataset
 import network
@@ -10,6 +12,7 @@ import os
 import time
 from torch.utils.tensorboard import SummaryWriter
 from datetime import datetime
+import torch.nn.functional as F
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--crop_size', default=96, type=int, help='training images crop size')
@@ -20,7 +23,7 @@ parser.add_argument('--num_epochs', default=100, type=int, help='number of round
 parser.add_argument('--load_epochs', default=0, type=int)
 parser.add_argument('--lr', default=0.001, type=int, help='learning rate')
 parser.add_argument('--step_size', default=5000, type=int, help='when to adjustment of learning rate')
-parser.add_argument('--dataset', default='BSDS500/train', type=str, help='dataset path')
+parser.add_argument('--dataset', default='BSDS500/processed_images', type=str, help='dataset path')
 parser.add_argument('--patience', default=7000, type=int, help='early stopping')
 parser.add_argument('--first', default=False, type=bool, help='new to this code')
 opt = parser.parse_args()
@@ -34,7 +37,6 @@ SETP_SIZE = opt.step_size
 DATASET = opt.dataset
 PATIENCE = opt.patience
 FIRST = opt.first
-
 
 dataset = TrainDataset(DATASET, CROP_SIZE, BLOCK_SIZE)
 train_dataloader = DataLoader(dataset, num_workers=0, batch_size=BATCH_SIZE, shuffle=True)
@@ -54,13 +56,12 @@ if FIRST:
     line = "0\n"
 line = line.rstrip('\n')
 line = int(line)
-writer = SummaryWriter(log_dir=f'./runs/exp{current_time}_实验名_{line}')
+writer = SummaryWriter(log_dir=f'./runs/exp{current_time}_更改网络_{line}')
 line += 1
 line = str(line)
 line = line + '\n'
 with open('exp_counter.txt', 'w') as file:
     file.writelines(line)
-
 
 device = (
     "cuda"
@@ -70,10 +71,10 @@ device = (
     else "cpu"
 )
 
-net = network.CSNet(BLOCK_SIZE, opt.sub_rate).to(device)
+net = network_new.CSNet(BLOCK_SIZE, opt.sub_rate).to(device)
 print(net)
 print(f'using blocksize:{BLOCK_SIZE} cropsize:{CROP_SIZE} epochs:{NUM_EPOCHS} batchsize:{BATCH_SIZE}')
-loss_fn = nn.HuberLoss()
+loss_fn = nn.MSELoss()
 loss_fn.to(device)
 
 optimizer = torch.optim.Adam(net.parameters(), LR, betas=(0.9, 0.999))
@@ -102,6 +103,8 @@ for epoch in range(LOAD_EPOCHS, NUM_EPOCHS + 1):
 
         optimizer.zero_grad()
         fake_img = net(data).to(device)
+        fake_img = F.interpolate(fake_img, size=(target.size(2), target.size(3)), mode='bilinear',
+                                 align_corners=False)
         fake_img_np = fake_img.cpu().detach().numpy()
         target_np = target.cpu().detach().numpy()
         # print(numpy.asarray(fake_img_np.shape) - 7)\

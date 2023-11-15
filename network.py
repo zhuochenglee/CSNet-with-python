@@ -126,7 +126,7 @@ class CSNet(nn.Module):
         super(CSNet, self).__init__()
         self.blocksize = blocksize
         self.samping = nn.Conv2d(1, int(numpy.round(blocksize * blocksize * subrate)), blocksize,
-                                 stride=blocksize, padding=18, dilation=2,
+                                 stride=blocksize, padding=18, dilation=1,
                                  bias=False)
 
         self.init_conv = nn.Conv2d(int(numpy.round(blocksize * blocksize * subrate)),
@@ -173,7 +173,7 @@ if __name__ == '__main__':
     import torch
 
     freeze_support()
-    img = torch.randn(1, 1, 180, 180)
+    img = torch.randn(1, 1, 96, 96)
     img = img.to('cuda')
     net = CSNet()
     net = net.to('cuda')

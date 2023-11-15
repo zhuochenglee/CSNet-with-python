@@ -42,7 +42,7 @@ def ssim(img1, img2):
 # 图像增强
 def img_aug(crop_size):
     return Compose([
-        RandomCrop(crop_size),
+        # RandomCrop(crop_size),
         # RandomHorizontalFlip(p=0.5),
         # RandomVerticalFlip(p=0.5),
         Grayscale(),
