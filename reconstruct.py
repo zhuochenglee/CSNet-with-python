@@ -8,7 +8,7 @@ from torchvision.io import read_image
 from PIL import Image
 import torch.cuda
 from torchvision.transforms import ToPILImage
-from network import CSNet
+from network_new import CSNet
 import data_util
 from tqdm import tqdm
 from pytorch_msssim import ssim
