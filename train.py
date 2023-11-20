@@ -18,14 +18,14 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--crop_size', default=96, type=int, help='training images crop size')
 parser.add_argument('--block_size', default=32, type=int, help='CS block size')
 parser.add_argument('--sub_rate', default=0.1, type=float, help='sampling sub rate')
-parser.add_argument('--batchsize', default=64, type=int, help='train batch size')
+parser.add_argument('--batchsize', default=32, type=int, help='train batch size')
 parser.add_argument('--num_epochs', default=100, type=int, help='number of round to be trained')
 parser.add_argument('--load_epochs', default=0, type=int)
 parser.add_argument('--lr', default=0.001, type=int, help='learning rate')
 parser.add_argument('--step_size', default=5000, type=int, help='when to adjustment of learning rate')
 parser.add_argument('--dataset', default='BSDS500/processed_images', type=str, help='dataset path')
-parser.add_argument('--patience', default=7000, type=int, help='early stopping')
-parser.add_argument('--first', default=False, type=bool, help='new to this code')
+parser.add_argument('--patience', default=2000, type=int, help='early stopping')
+parser.add_argument('--first', default=True, type=bool, help='new to this code')
 opt = parser.parse_args()
 CROP_SIZE = opt.crop_size
 BLOCK_SIZE = opt.block_size
@@ -56,7 +56,7 @@ if FIRST:
     line = "0\n"
 line = line.rstrip('\n')
 line = int(line)
-writer = SummaryWriter(log_dir=f'./runs/exp{current_time}_更改网络_{line}')
+writer = SummaryWriter(log_dir=f'./runs/exp{current_time}_加快训练_{line}')
 line += 1
 line = str(line)
 line = line + '\n'
@@ -71,7 +71,7 @@ device = (
     else "cpu"
 )
 
-net = network_new.CSNet(BLOCK_SIZE, opt.sub_rate).to(device)
+net = test_code.CSNet(BLOCK_SIZE, opt.sub_rate).to(device)
 print(net)
 print(f'using blocksize:{BLOCK_SIZE} cropsize:{CROP_SIZE} epochs:{NUM_EPOCHS} batchsize:{BATCH_SIZE}')
 loss_fn = nn.MSELoss()
