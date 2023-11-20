@@ -7,6 +7,20 @@ from torchvision import transforms
 from torch.autograd import Variable
 import torchvision.transforms as transforms
 import matplotlib.pyplot as plt
+from PIL import Image
+
+
+class SeparableConv2d(nn.Module):
+    def __init__(self, in_channels, out_channels, kernel_size, stride=1, padding=1, dilation=1, bias=False):
+        super(SeparableConv2d, self).__init__()
+        self.depthwise = nn.Conv2d(in_channels, in_channels, kernel_size, stride, padding, dilation, groups=in_channels,
+                                   bias=bias)
+        self.pointwise = nn.Conv2d(in_channels, out_channels, 1, 1, 0, 1, 1, bias=False)
+
+    def forward(self, x):
+        x = self.depthwise(x)
+        x = self.pointwise(x)
+        return x
 
 
 class ResidualBlock(nn.Module):
@@ -14,11 +28,11 @@ class ResidualBlock(nn.Module):
                  use_1x1conv=False, has_bn=False, strides=1):
         super(ResidualBlock, self).__init__()
         self.has_bn = has_bn
-        self.conv1 = nn.Conv2d(input_channels, num_channels, kernel_size=3, padding=1)
+        self.conv1 = SeparableConv2d(input_channels, num_channels, kernel_size=3, padding=1)
         if self.has_bn:
             self.bn1 = nn.BatchNorm2d(input_channels)
         self.prelu = nn.PReLU()
-        self.conv2 = nn.Conv2d(input_channels, num_channels, kernel_size=3, padding=1)
+        self.conv2 = SeparableConv2d(input_channels, num_channels, kernel_size=3, padding=1)
         if self.has_bn:
             self.bn2 = nn.BatchNorm2d(input_channels)
 
@@ -33,191 +47,123 @@ class ResidualBlock(nn.Module):
         return x + y
 
 
-# reshape and concat
-'''
-def reshape_concat(img, blocksize):
-    transform = transforms.Compose([
-        transforms.ToTensor()
-    ])
-    img_tensor = transform(img)
-    img_tensor = img_tensor.expand(1, -1, -1, -1)
-    data = torch.clone(img_tensor.data)
-    b_ = data.shape[0]  # batch-size
-    c_ = data.shape[1]  # channels
-    w_ = data.shape[2]  # width
-    h_ = data.shape[3]  # height
-    output = torch.zeros(b_, int(c_ / blocksize / blocksize),
-                         int(w_ * blocksize), int(h_ * blocksize))
-    for i in range(0, w_):
-        for j in range(0, h_):
-            data_temp = data[:, :, i, j]
-            data_temp = data_temp.view(b_, int(c_ / blocksize / blocksize), blocksize, blocksize)
-            output[:, :, i * blocksize: (i + 1) * blocksize, j * blocksize: (j + 1) * blocksize] += data_temp
-    return output
-'''
-
-
-class Reshape_Concat_Adap(torch.autograd.Function):
-    blocksize = 0
-
-    def __init__(self, block_size):
-        # super(Reshape_Concat_Adap, self).__init__()
-        Reshape_Concat_Adap.blocksize = block_size
-
-    @staticmethod
-    def forward(ctx, input_, ):
-        ctx.save_for_backward(input_)
-
-        data = torch.clone(input_.data)
-        b_ = data.shape[0]
-        c_ = data.shape[1]
-        w_ = data.shape[2]
-        h_ = data.shape[3]
-
-        output = torch.zeros((b_,
-                              int(c_ / Reshape_Concat_Adap.blocksize / Reshape_Concat_Adap.blocksize),
-                              int(w_ * Reshape_Concat_Adap.blocksize),
-                              int(h_ * Reshape_Concat_Adap.blocksize))).cuda()
-
-        for i in range(0, w_):
-            for j in range(0, h_):
-                data_temp = data[:, :, i, j]
-                # data_temp = torch.zeros(data_t.shape).cuda() + data_t
-                # data_temp = data_temp.contiguous()
-                data_temp = data_temp.view((b_, int(c_ / Reshape_Concat_Adap.blocksize / Reshape_Concat_Adap.blocksize),
-                                            Reshape_Concat_Adap.blocksize, Reshape_Concat_Adap.blocksize))
-                # print data_temp.shape
-                output[:, :, i * Reshape_Concat_Adap.blocksize:(i + 1) * Reshape_Concat_Adap.blocksize,
-                j * Reshape_Concat_Adap.blocksize:(j + 1) * Reshape_Concat_Adap.blocksize] += data_temp
-
-        return output
-
-    @staticmethod
-    def backward(ctx, grad_output):
-        inp, = ctx.saved_tensors
-        input_ = torch.clone(inp.data)
-        grad_input = torch.clone(grad_output.data)
-
-        b_ = input_.shape[0]
-        c_ = input_.shape[1]
-        w_ = input_.shape[2]
-        h_ = input_.shape[3]
-
-        output = torch.zeros((b_, c_, w_, h_)).cuda()
-        output = output.view(b_, c_, w_, h_)
-        for i in range(0, w_):
-            for j in range(0, h_):
-                data_temp = grad_input[:, :, i * Reshape_Concat_Adap.blocksize:(i + 1) * Reshape_Concat_Adap.blocksize,
-                            j * Reshape_Concat_Adap.blocksize:(j + 1) * Reshape_Concat_Adap.blocksize]
-                # data_temp = torch.zeros(data_t.shape).cuda() + data_t
-                data_temp = data_temp.contiguous()
-                data_temp = data_temp.view((b_, c_, 1, 1))
-                output[:, :, i, j] += torch.squeeze(data_temp)
-
-        return Variable(output)
-
-
-def My_Reshape_Adap(input, blocksize):
-    return Reshape_Concat_Adap(blocksize).apply(input)
-
-
-class ChannelAttention(nn.Module):
-    def __init__(self, in_channels, ratio=16):
-        super(ChannelAttention, self).__init__()
-        self.avg_pool = nn.AdaptiveAvgPool2d(1)
-        self.max_pool = nn.AdaptiveMaxPool2d(1)
-        self.fc = nn.Sequential(
-            nn.Conv2d(in_channels, in_channels // ratio, 1, bias=False),
-            nn.ReLU(inplace=True),
-            nn.Conv2d(in_channels // ratio, in_channels, 1, bias=False)
-        )
-        self.sigmoid = nn.Sigmoid()
-
-    def forward(self, x):
-        avg_out = self.fc(self.avg_pool(x))
-        max_out = self.fc(self.max_pool(x))
-        out = avg_out + max_out
-        out = self.sigmoid(out)
-        return out * x
-
-
-class SpatialAttention(nn.Module):
-    def __init__(self, kernel_size=3):
-        super(SpatialAttention, self).__init__()
-        assert kernel_size in (3, 7), "核大小必须为3或者7"
-        padding = 3 if kernel_size == 7 else 1
-        self.conv1 = nn.Conv2d(2, 1,kernel_size, padding=padding, bias=False)
-        self.sigmoid = nn.Sigmoid()
-
-    def forward(self, x):
-        avg_out = torch.mean(x, dim=1, keepdim=True)
-        max_out = torch.max(x, dim=1, keepdim=True)
-        out = torch.cat([avg_out, max_out.values], dim=1)
-        out = self.sigmoid(self.conv1(out))
-        return out * x
-
-
-class CBAM(nn.Module):
-    def __init__(self, in_channels, ratio=16, kernel_size=3):
-        super(CBAM, self).__init__()
-        self.channelattention = ChannelAttention(in_channels, ratio=ratio)
-        self.spatialattention = SpatialAttention(kernel_size=kernel_size)
-
-    def forward(self, x):
-        x = self.channelattention(x)
-        x = self.spatialattention(x)
-        return x
-
-
 # CSNet
 class CSNet(nn.Module):
     def __init__(self, blocksize=32, subrate=0.1):
         super(CSNet, self).__init__()
         self.blocksize = blocksize
-        self.samping = nn.Conv2d(1, int(numpy.round(blocksize * blocksize * subrate)), blocksize,
-                                 stride=blocksize, padding=18, dilation=2,
-                                 bias=False)
-        self.att = CBAM(int(numpy.round(blocksize * blocksize)), ratio=16, kernel_size=3)
-
-        self.init_conv = nn.Conv2d(int(numpy.round(blocksize * blocksize * subrate)),
-                                   blocksize * blocksize, 1, stride=1, padding=0)
+        self.samping = SeparableConv2d(1, int(numpy.round(blocksize * blocksize * subrate)), blocksize,
+                                       stride=blocksize, padding=0,
+                                       bias=False)
+        self.deconv = nn.ConvTranspose2d(int(numpy.round(blocksize * blocksize * subrate)), blocksize * blocksize,
+                                         blocksize, padding=0, stride=blocksize)
+        # self.init_conv = nn.Conv2d(int(numpy.round(blocksize * blocksize * subrate)),
+        #                            blocksize * blocksize, 1, stride=1, padding=0)
+        self.c1 = nn.Sequential(
+            SeparableConv2d(in_channels=blocksize * blocksize, out_channels=32, kernel_size=3, stride=1),
+            nn.ReLU(),
+            SeparableConv2d(32, 32, 3, 1),
+            nn.ReLU(),
+            SeparableConv2d(32, 32, 3, 1),
+            nn.ReLU(),
+            SeparableConv2d(32, 32, 3, 1),
+            nn.ReLU(),
+        )
+        self.c2_d1 = nn.Sequential(
+            SeparableConv2d(in_channels=blocksize * blocksize, out_channels=32, kernel_size=3, stride=1),
+            nn.ReLU(),
+            SeparableConv2d(32, 32, 3, 1),
+            nn.ReLU(),
+            SeparableConv2d(32, 32, 3, 1),
+            nn.ReLU(),
+            SeparableConv2d(32, 32, 3, 1),
+            nn.ReLU(),
+        )
+        self.c2_d2 = nn.Sequential(
+            nn.Conv2d(in_channels=numpy.round(blocksize * blocksize), out_channels=32, kernel_size=3, stride=1,
+                      dilation=2),
+            nn.ReLU(),
+            SeparableConv2d(32, 32, 5, 1),
+            nn.ReLU(),
+            nn.Conv2d(in_channels=32, out_channels=32, kernel_size=3, stride=1, dilation=2),
+            nn.ReLU(),
+            SeparableConv2d(32, 32, 5, 1),
+            nn.ReLU(),
+        )
+        self.c3_d1 = nn.Sequential(
+            nn.Conv2d(in_channels=blocksize * blocksize, out_channels=32, kernel_size=3, stride=1),
+            nn.ReLU(),
+            nn.Conv2d(32, 32, 3, 1),
+            nn.ReLU(),
+            nn.Conv2d(32, 32, 3, 1),
+            nn.ReLU(),
+            nn.Conv2d(32, 32, 3, 1),
+            nn.ReLU(),
+        )
+        self.c3_d2 = nn.Sequential(
+            nn.Conv2d(in_channels=blocksize * blocksize, out_channels=32, kernel_size=3, stride=1, dilation=2),
+            nn.ReLU(),
+            nn.Conv2d(32, 32, 5, 1),
+            nn.ReLU(),
+            nn.Conv2d(in_channels=32, out_channels=32, kernel_size=3, stride=1, dilation=2),
+            nn.ReLU(),
+            nn.Conv2d(32, 32, 5, 1),
+            nn.ReLU(),
+        )
+        self.c3_d3 = nn.Sequential(
+            nn.Conv2d(in_channels=blocksize * blocksize, out_channels=32, kernel_size=3, stride=1, dilation=3),
+            nn.ReLU(),
+            SeparableConv2d(32, 32, 7, 1),
+            nn.ReLU(),
+            nn.Conv2d(in_channels=32, out_channels=32, kernel_size=3, stride=1, dilation=3),
+            nn.ReLU(),
+            SeparableConv2d(32, 32, 7, 1),
+            nn.ReLU(),
+        )
         self.block1 = nn.Sequential(
-            nn.Conv2d(1, 64, kernel_size=3, stride=1, padding=1),
+            nn.Conv2d(192, 64, kernel_size=3, stride=1, padding=1),
             nn.ReLU()
         )
         self.block2 = ResidualBlock(64, 64, has_bn=True)
         self.block3 = ResidualBlock(64, 64, has_bn=True)
         self.block4 = ResidualBlock(64, 64, has_bn=True)
-        self.block5 = ResidualBlock(64, 64, has_bn=True)
-        self.block6 = ResidualBlock(64, 64, has_bn=True)
         self.conv = nn.Conv2d(64, 1, kernel_size=3, stride=1, padding=1)
 
     def forward(self, x):
-        """cs = self.fc(x)
-        cs = cs.clamp(0,1)
-        cs = cs.squeeze(1)
-        cs = torch.mean(cs, dim=0, keepdim=True)
-        img = transforms.ToPILImage()(cs)
-        plt.imshow(img)
-        plt.show()"""
         cs = self.samping(x)
         """cs = F.interpolate(cs, scale_factor=2, mode='bilinear', align_corners=False)
         cs = self.dilation_conv(cs)
         print(cs.shape)"""
         # 初始重建
-
-        x = self.init_conv(cs)
-        x = self.att(x)
-        x = My_Reshape_Adap(x, self.blocksize)
+        x = self.deconv(cs)
+        # out = x.cpu().detach().numpy()
+        # channel_0 = out[0, 3, :, :]
+        # plt.imshow(channel_0, cmap='gray')
+        # plt.axis('off')
+        # plt.show()
+        # x = My_Reshape_Adap(x, self.blocksize)
         # 深度重建
-        block1 = self.block1(x)
+        c1_out = self.c1(x)
+        c2_d1_out = c1_out
+        c2_d2_out = self.c2_d2(x)
+        c3_d1_out = c1_out
+        c3_d2_out = c2_d2_out
+        c3_d3_out = self.c3_d3(x)
+        c2_d2_out = F.interpolate(c2_d2_out, size=(c2_d1_out.size(2), c2_d1_out.size(3)), mode='bilinear',
+                                  align_corners=False)
+        c2_out = torch.cat([c2_d1_out, c2_d2_out], dim=1)
+        c3_d2_out = F.interpolate(c3_d2_out, size=(c3_d1_out.size(2), c3_d1_out.size(3)), mode='bilinear',
+                                  align_corners=False)
+        c3_d3_out = F.interpolate(c3_d3_out, size=(c3_d1_out.size(2), c3_d1_out.size(3)), mode='bilinear',
+                                  align_corners=False)
+        c3_out = torch.cat([c3_d1_out, c3_d2_out, c3_d3_out], dim=1)
+        # 将三个特征提取路线的结果全部按照通道维度拼接
+        msf = torch.cat([c1_out, c2_out, c3_out], dim=1)
+        block1 = self.block1(msf)
         block2 = self.block2(block1)
         block3 = self.block3(block2)
         block4 = self.block4(block3)
-        block5 = self.block5(block4)
-        block6 = self.block6(block5)
-        block7 = self.conv(block6)
-        res = x + block7
+        res = self.conv(block4)
         return res
 
 
@@ -225,10 +171,22 @@ if __name__ == '__main__':
     import torch
 
     freeze_support()
-    img = torch.randn(1, 1, 180, 180)
-    img = img.to('cuda')
+    img_path = 'BSDS500/train/2018.jpg'
+    img = Image.open(img_path).convert('L')
+    preprocess = transforms.Compose([
+        transforms.ToTensor(),
+    ])
+    in_tensor = preprocess(img)
+    in_tensor = in_tensor.unsqueeze(0)
+    in_tensor = in_tensor.to('cuda')
     net = CSNet()
     net = net.to('cuda')
-    out = net(img)
-    print(out.detach().cpu().numpy())
+    out = net(in_tensor)
+    print(out.shape)
+    out = out.squeeze(0)
+    out = out.squeeze(0)
+    # out = out.permute(1, 0)
+    out = out.detach().cpu().numpy()
+    plt.imshow(out)
+    plt.show()
     print(out.shape)
