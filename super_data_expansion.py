@@ -77,7 +77,7 @@ folder_path = "BSDS500/train"
 image_files = get_image_files(folder_path)
 processed_images = process_images(image_files)
 print(f'total images: {len(processed_images)}')
-select_images = random_select(processed_images, 89600)
+select_images = random_select(processed_images, 5000)
 
 for i, image in tqdm(enumerate(select_images), total=len(select_images), desc="保存图片"):
     image.save(os.path.join(save_dir, str(i) + '.png'))
