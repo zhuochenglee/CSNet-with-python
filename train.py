@@ -2,7 +2,6 @@ import torch
 from torch import nn
 from torch.utils.data import DataLoader
 from tqdm import tqdm
-
 import network_new
 import test_code
 from data_util import TrainDataset
@@ -13,17 +12,19 @@ import time
 from torch.utils.tensorboard import SummaryWriter
 from datetime import datetime
 import torch.nn.functional as F
+import torchvision.transforms as transforms
+from PIL import Image
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--crop_size', default=96, type=int, help='training images crop size')
-parser.add_argument('--block_size', default=32, type=int, help='CS block size')
+parser.add_argument('--block_size', default=96, type=int, help='CS block size')
 parser.add_argument('--sub_rate', default=0.1, type=float, help='sampling sub rate')
-parser.add_argument('--batchsize', default=32, type=int, help='train batch size')
+parser.add_argument('--batchsize', default=1, type=int, help='train batch size')
 parser.add_argument('--num_epochs', default=100, type=int, help='number of round to be trained')
 parser.add_argument('--load_epochs', default=0, type=int)
-parser.add_argument('--lr', default=0.001, type=int, help='learning rate')
+parser.add_argument('--lr', default=0.0001, type=int, help='learning rate')
 parser.add_argument('--step_size', default=5000, type=int, help='when to adjustment of learning rate')
-parser.add_argument('--dataset', default='BSDS500/processed_images', type=str, help='dataset path')
+parser.add_argument('--dataset', default='BSDS500/train', type=str, help='dataset path')
 parser.add_argument('--patience', default=2000, type=int, help='early stopping')
 parser.add_argument('--first', default=True, type=bool, help='new to this code')
 opt = parser.parse_args()
@@ -92,7 +93,13 @@ for epoch in range(LOAD_EPOCHS, NUM_EPOCHS + 1):
     # scheduler.step()
     # data和target是一模一样的图片
     for data, target in train_bar:
-        # print(target)
+        # im1 = data[0]
+        # im1 = im1.squeeze(0)
+        # tra = transforms.Compose([
+        #     transforms.ToPILImage(),
+        # ])
+        # image = tra(im1)
+        # image.show()
         batch_size = data.size(0)
         if batch_size <= 0:
             continue
