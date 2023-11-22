@@ -80,7 +80,7 @@ class CSNet(nn.Module):
                                        stride=blocksize, padding=0,
                                        bias=False)
         self.deconv = nn.ConvTranspose2d(int(numpy.round(blocksize * blocksize * subrate)), blocksize * blocksize,
-                                         3, padding=0, stride=blocksize)
+                                         blocksize, padding=0, stride=blocksize)
         # self.init_conv = nn.Conv2d(int(numpy.round(blocksize * blocksize * subrate)),
         #                            blocksize * blocksize, 1, stride=1, padding=0)
         self.c1 = nn.Sequential(
@@ -160,7 +160,7 @@ class CSNet(nn.Module):
         print(cs.shape)"""
         # 初始重建
         x = self.deconv(cs)
-        feature = RB2O(cs=cs, init_recon=x)
+        # feature = RB2O(cs=cs, init_recon=x)
         # 深度重建
         c1_out = self.c1(x)
         c2_d1_out = self.c2_d1(x)
