@@ -17,15 +17,15 @@ from PIL import Image
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--crop_size', default=96, type=int, help='training images crop size')
-parser.add_argument('--block_size', default=96, type=int, help='CS block size')
+parser.add_argument('--block_size', default=32, type=int, help='CS block size')
 parser.add_argument('--sub_rate', default=0.1, type=float, help='sampling sub rate')
-parser.add_argument('--batchsize', default=16, type=int, help='train batch size')
-parser.add_argument('--num_epochs', default=100, type=int, help='number of round to be trained')
+parser.add_argument('--batchsize', default=32, type=int, help='train batch size')
+parser.add_argument('--num_epochs', default=200, type=int, help='number of round to be trained')
 parser.add_argument('--load_epochs', default=0, type=int)
-parser.add_argument('--lr', default=0.0001, type=int, help='learning rate')
-parser.add_argument('--step_size', default=5000, type=int, help='when to adjustment of learning rate')
-parser.add_argument('--dataset', default='BSDS500/processed_images', type=str, help='dataset path')
-parser.add_argument('--patience', default=2000, type=int, help='early stopping')
+parser.add_argument('--lr', default=0.001, type=int, help='learning rate')
+parser.add_argument('--step_size', default=400, type=int, help='when to adjustment of learning rate')
+parser.add_argument('--dataset', default='BSDS500/processed_images_no_crop', type=str, help='dataset path')
+parser.add_argument('--patience', default=300, type=int, help='early stopping')
 parser.add_argument('--first', default=True, type=bool, help='new to this code')
 opt = parser.parse_args()
 CROP_SIZE = opt.crop_size
@@ -38,6 +38,17 @@ SETP_SIZE = opt.step_size
 DATASET = opt.dataset
 PATIENCE = opt.patience
 FIRST = opt.first
+
+"""
+训练前准备
+1. 确认训练集
+2. 确认模型
+3. 确认批次大小
+4. 确认学习率大小
+5. 确认学习率调整时机
+6. 确认早停轮数
+7. 更改训练关键词
+"""
 
 dataset = TrainDataset(DATASET, CROP_SIZE, BLOCK_SIZE)
 train_dataloader = DataLoader(dataset, num_workers=0, batch_size=BATCH_SIZE, shuffle=True)
@@ -57,7 +68,8 @@ if FIRST:
     line = "0\n"
 line = line.rstrip('\n')
 line = int(line)
-writer = SummaryWriter(log_dir=f'./runs/exp{current_time}_加快训练_{line}')
+key_word = '未裁切图片，使用多个CBAM模块'
+writer = SummaryWriter(log_dir=f'./runs/exp{current_time}_{key_word}_{line}')
 line += 1
 line = str(line)
 line = line + '\n'
@@ -72,7 +84,7 @@ device = (
     else "cpu"
 )
 
-net = test_code.CSNet(BLOCK_SIZE, opt.sub_rate).to(device)
+net = network.CSNet(BLOCK_SIZE, opt.sub_rate).to(device)
 print(net)
 print(f'using blocksize:{BLOCK_SIZE} cropsize:{CROP_SIZE} epochs:{NUM_EPOCHS} batchsize:{BATCH_SIZE}')
 loss_fn = nn.MSELoss()
@@ -131,7 +143,7 @@ for epoch in range(LOAD_EPOCHS, NUM_EPOCHS + 1):
 
         train_bar.set_description(desc='[%d] Loss_G: %.7f lr: %.7f' % (
             epoch, running_res['g_loss'] / running_res['batch_size'], optimizer.param_groups[0]['lr']))
-        save_dir = 'epochs' + '_subrate_' + str(opt.sub_rate) + '_blocksize_' + str(BLOCK_SIZE)
+        save_dir = 'epochs' + '_subrate_' + str(opt.sub_rate) + '_blocksize_' + str(BLOCK_SIZE) + key_word
         if not os.path.exists(save_dir):
             os.makedirs(save_dir)
         if epoch % 5 == 0:
@@ -146,7 +158,6 @@ for epoch in range(LOAD_EPOCHS, NUM_EPOCHS + 1):
                     epoch, current_loss))
                 counter_it += 1
         if counter_it == PATIENCE:
-            print(f'连续{counter_it}轮未下降loss，已停止训练')
             break
         scheduler.step()
     if break_flag:

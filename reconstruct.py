@@ -11,12 +11,13 @@ import data_util
 from tqdm import tqdm
 from pytorch_msssim import ssim
 import test_code
+import network
 
 
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--device', default='cuda', type=str)
-parser.add_argument('--wab', default='A_BEST_0.pth',
+parser.add_argument('--wab', default='epochs_subrate_0.1_blocksize_32未裁切图片，使用多个CBAM模块/A_BEST_0.pth',
                     type=str, help='weights and bais')
 parser.add_argument('--test_data', default='BMP', type=str)
 parser.add_argument('--block_size', default=32, type=int)
@@ -36,7 +37,7 @@ SUB_RATE = opt.sub_rate
 if DEVICE == 'cuda' and not torch.cuda.is_available():
     raise Exception("No GPU found")
 
-model = test_code.CSNet(BLOCK_SIZE, SUB_RATE)
+model = network.CSNet(BLOCK_SIZE, SUB_RATE)
 model.load_state_dict(torch.load(WAB))
 model.eval()
 
