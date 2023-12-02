@@ -43,8 +43,11 @@ def process_images(image_path):
         processed_images.append(image)
         processed_images.append(flip_LR_image(image))
         processed_images.append(rotate_image(image, 180))
+        processed_images.append(rotate_image(image, 270))
+        processed_images.append(rotate_image(flip_LR_image(image), 270))
         processed_images.append(rotate_image(flip_LR_image(image), 180))
         processed_images.append(flip_TB_image(image))
+        processed_images.append(rotate_image(flip_TB_image(image), 270))
         processed_images.append(rotate_image(flip_TB_image(image), 180))
     return processed_images
 

@@ -19,13 +19,13 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--crop_size', default=96, type=int, help='training images crop size')
 parser.add_argument('--block_size', default=32, type=int, help='CS block size')
 parser.add_argument('--sub_rate', default=0.1, type=float, help='sampling sub rate')
-parser.add_argument('--batchsize', default=32, type=int, help='train batch size')
-parser.add_argument('--num_epochs', default=200, type=int, help='number of round to be trained')
+parser.add_argument('--batchsize', default=16, type=int, help='train batch size')
+parser.add_argument('--num_epochs', default=100, type=int, help='number of round to be trained')
 parser.add_argument('--load_epochs', default=0, type=int)
 parser.add_argument('--lr', default=0.001, type=int, help='learning rate')
-parser.add_argument('--step_size', default=400, type=int, help='when to adjustment of learning rate')
+parser.add_argument('--step_size', default=1000, type=int, help='when to adjustment of learning rate')
 parser.add_argument('--dataset', default='BSDS500/processed_images_no_crop', type=str, help='dataset path')
-parser.add_argument('--patience', default=300, type=int, help='early stopping')
+parser.add_argument('--patience', default=1000, type=int, help='early stopping')
 parser.add_argument('--first', default=True, type=bool, help='new to this code')
 opt = parser.parse_args()
 CROP_SIZE = opt.crop_size
@@ -68,7 +68,7 @@ if FIRST:
     line = "0\n"
 line = line.rstrip('\n')
 line = int(line)
-key_word = '未裁切图片，使用多个CBAM模块'
+key_word = '在初始重构之前使用CBAM注意力机制'
 writer = SummaryWriter(log_dir=f'./runs/exp{current_time}_{key_word}_{line}')
 line += 1
 line = str(line)

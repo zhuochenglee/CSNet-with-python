@@ -1,14 +1,11 @@
 from multiprocessing import freeze_support
-import torch.nn.functional as F
 import numpy
 import torch
 import torch.nn as nn
-from torchvision import transforms
-from torch.autograd import Variable
-import torchvision.transforms as transforms
-import matplotlib.pyplot as plt
-from cbam import CBAM
+from att_cbam import CBAM
 import cv2
+import math
+from att_se import eca_block
 
 
 class ResidualBlock(nn.Module):
@@ -34,35 +31,6 @@ class ResidualBlock(nn.Module):
         if self.has_bn:
             y = self.bn2(y)
         return x + y
-
-
-# reshape and concat
-"""
-def reshape_concat(img, blocksize):
-    transform = transforms.Compose([
-        transforms.ToTensor()
-    ])
-    img_tensor = transform(img)
-    img_tensor = img_tensor.expand(1, -1, -1, -1)
-    data = torch.clone(img_tensor.data)
-    b_ = data.shape[0]  # batch-size
-    c_ = data.shape[1]  # channels
-    w_ = data.shape[2]  # width
-    h_ = data.shape[3]  # height
-    output = torch.zeros(b_, int(c_ / blocksize / blocksize),
-                         int(w_ * blocksize), int(h_ * blocksize))
-    for i in range(0, w_):
-        for j in range(0, h_):
-            data_temp = data[:, :, i, j]
-            data_temp = data_temp.view(b_, int(c_ / blocksize / blocksize), blocksize, blocksize)
-            output[:, :, i * blocksize: (i + 1) * blocksize, j * blocksize: (j + 1) * blocksize] += data_temp
-    return output
-"""
-
-
-"""
-重新实现reshape_concat功能
-"""
 
 
 def My_Reshape_Adap(input, blocksize):
@@ -91,7 +59,8 @@ class CSNet(nn.Module):
             stride=32,
             padding=0,
         )
-        self.cbam = CBAM(blocksize * blocksize)
+        self.cbam = CBAM(64)
+        self.se = eca_block(102)
         self.block1 = nn.Sequential(
             nn.Conv2d(1, 64, kernel_size=3, stride=1, padding=1), nn.ReLU()
         )
@@ -103,21 +72,9 @@ class CSNet(nn.Module):
         self.conv = nn.Conv2d(64, 1, kernel_size=3, stride=1, padding=1)
 
     def forward(self, x):
-        """cs = self.fc(x)
-        cs = cs.clamp(0,1)
-        cs = cs.squeeze(1)
-        cs = torch.mean(cs, dim=0, keepdim=True)
-        img = transforms.ToPILImage()(cs)
-        plt.imshow(img)
-        plt.show()"""
         cs = self.samping(x)
-        """cs = F.interpolate(cs, scale_factor=2, mode='bilinear', align_corners=False)
-        cs = self.dilation_conv(cs)
-        print(cs.shape)"""
         # 初始重建
         x = self.init_conv(cs)
-        return x
-        x = My_Reshape_Adap(x, self.blocksize)
         # 深度重建
         block1 = self.block1(x)  # out channels: 64
         block1_att = self.cbam(block1)

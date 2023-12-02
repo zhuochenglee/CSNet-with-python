@@ -17,7 +17,7 @@ import network
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--device', default='cuda', type=str)
-parser.add_argument('--wab', default='epochs_subrate_0.1_blocksize_32未裁切图片，使用多个CBAM模块/A_BEST_0.pth',
+parser.add_argument('--wab', default='epochs_subrate_0.1_blocksize_32在初始重构之前使用SE注意力机制/A_BEST_0.pth',
                     type=str, help='weights and bais')
 parser.add_argument('--test_data', default='BMP', type=str)
 parser.add_argument('--block_size', default=32, type=int)
